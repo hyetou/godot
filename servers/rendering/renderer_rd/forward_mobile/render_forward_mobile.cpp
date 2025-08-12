@@ -889,7 +889,15 @@ void RenderForwardMobile::_render_scene(RenderDataRD *p_render_data, const Color
 
 	// fill our render lists early so we can find out if we use various features
 	_fill_render_list(RENDER_LIST_OPAQUE, p_render_data, PASS_MODE_COLOR);
-	render_list[RENDER_LIST_OPAQUE].sort_by_key();
+	if (scene_state.used_opaque_stencil) {
+		render_list[RENDER_LIST_OPAQUE].sort_by_key_and_stencil();
+	} else {
+		if (GLOBAL_GET("rendering/sorting/use_z_depth_sorting")) {
+			render_list[RENDER_LIST_OPAQUE].sort_by_depth_and_priority();
+		} else {
+			render_list[RENDER_LIST_OPAQUE].sort_by_key();
+		}
+	}
 	render_list[RENDER_LIST_ALPHA].sort_by_reverse_depth_and_priority();
 	_fill_instance_data(RENDER_LIST_OPAQUE);
 	_fill_instance_data(RENDER_LIST_ALPHA);
@@ -2012,21 +2020,26 @@ void RenderForwardMobile::_fill_render_list(RenderListType p_render_list, const 
 	}
 
 	//fill list
+	bool use_z_depth_sorting = GLOBAL_GET("rendering/sorting/use_z_depth_sorting");
 
 	for (int i = 0; i < (int)p_render_data->instances->size(); i++) {
 		GeometryInstanceForwardMobile *inst = static_cast<GeometryInstanceForwardMobile *>((*p_render_data->instances)[i]);
 
 		Vector3 center = inst->transform.origin;
-		if (p_render_data->scene_data->cam_orthogonal) {
-			if (inst->use_aabb_center) {
-				center = inst->transformed_aabb.get_support(-near_plane.normal);
-			}
-			inst->depth = near_plane.distance_to(center) - inst->sorting_offset;
+		if (use_z_depth_sorting) {
+			inst->depth = -center.z;
 		} else {
-			if (inst->use_aabb_center) {
-				center = inst->transformed_aabb.position + (inst->transformed_aabb.size * 0.5);
+			if (p_render_data->scene_data->cam_orthogonal) {
+				if (inst->use_aabb_center) {
+					center = inst->transformed_aabb.get_support(-near_plane.normal);
+				}
+				inst->depth = near_plane.distance_to(center) - inst->sorting_offset;
+			} else {
+				if (inst->use_aabb_center) {
+					center = inst->transformed_aabb.position + (inst->transformed_aabb.size * 0.5);
+				}
+				inst->depth = p_render_data->scene_data->cam_transform.origin.distance_to(center) - inst->sorting_offset;
 			}
-			inst->depth = p_render_data->scene_data->cam_transform.origin.distance_to(center) - inst->sorting_offset;
 		}
 		uint32_t depth_layer = CLAMP(int(inst->depth * 16 / z_max), 0, 15);
 
@@ -2148,6 +2161,9 @@ void RenderForwardMobile::_fill_render_list(RenderListType p_render_list, const 
 				}
 				if (surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_DEPTH_TEXTURE) {
 					scene_state.used_depth_texture = true;
+				}
+				if ((surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_STENCIL) && !force_alpha && (surf->flags & (GeometryInstanceSurfaceDataCache::FLAG_PASS_DEPTH | GeometryInstanceSurfaceDataCache::FLAG_PASS_OPAQUE))) {
+					scene_state.used_opaque_stencil = true;
 				}
 
 			} else if (p_pass_mode == PASS_MODE_SHADOW || p_pass_mode == PASS_MODE_SHADOW_DP) {
@@ -2670,6 +2686,10 @@ void RenderForwardMobile::_geometry_instance_add_surface_with_material(GeometryI
 
 	if (ginstance->data->cast_double_sided_shadows) {
 		flags |= GeometryInstanceSurfaceDataCache::FLAG_USES_DOUBLE_SIDED_SHADOWS;
+	}
+
+	if (p_material->shader_data->stencil_enabled) {
+		flags |= GeometryInstanceSurfaceDataCache::FLAG_USES_STENCIL;
 	}
 
 	if (p_material->shader_data->uses_alpha_pass()) {

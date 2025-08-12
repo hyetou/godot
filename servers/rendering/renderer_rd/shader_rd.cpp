@@ -482,7 +482,7 @@ bool ShaderRD::_load_from_cache(Version *p_version, int p_group) {
 			p_version->variants.write[variant_id] = RID();
 			continue;
 		}
-		print_verbose(vformat("Loading cache for shader %s, variant %d", name, i));
+		// print_verbose(vformat("Loading cache for shader %s, variant %d", name, i));
 		{
 			RID shader = RD::get_singleton()->shader_create_from_bytecode_with_samplers(p_version->variant_data[variant_id], p_version->variants[variant_id], immutable_samplers);
 			if (shader.is_null()) {

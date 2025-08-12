@@ -6756,6 +6756,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 	}
 	native_menu = memnew(NativeMenuWindows);
 
+/*
 #ifdef ACCESSKIT_ENABLED
 	if (accessibility_get_mode() != DisplayServer::AccessibilityMode::ACCESSIBILITY_DISABLED) {
 		accessibility_driver = memnew(AccessibilityDriverAccessKit);
@@ -6768,6 +6769,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 		}
 	}
 #endif
+*/
 
 	// Enforce default keep screen on value.
 	screen_set_keep_on(GLOBAL_GET("display/window/energy_saving/keep_screen_on"));

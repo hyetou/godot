@@ -705,6 +705,18 @@ private:
 			sorter.sort(elements.ptr(), elements.size());
 		}
 
+		struct SortByDepthAndPriority {
+			_FORCE_INLINE_ bool operator()(const GeometryInstanceSurfaceDataCache *A, const GeometryInstanceSurfaceDataCache *B) const {
+				return (A->sort.priority == B->sort.priority) ? (A->owner->depth < B->owner->depth) : (A->sort.priority < B->sort.priority);
+			}
+		};
+
+		void sort_by_depth_and_priority() { //used for opaque with z-depth sorting
+
+			SortArray<GeometryInstanceSurfaceDataCache *, SortByDepthAndPriority> sorter;
+			sorter.sort(elements.ptr(), elements.size());
+		}
+
 		_FORCE_INLINE_ void add_element(GeometryInstanceSurfaceDataCache *p_element) {
 			elements.push_back(p_element);
 		}
